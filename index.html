@@ -21,9 +21,75 @@
       #map {
         height: 100vh;
       }
+      .heat-toggle,
+      .route-control {
+        position: absolute;
+        right: 14px;
+        z-index: 1001;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #111;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        font-family: system-ui, sans-serif;
+      }
+      .heat-toggle:hover,
+      .route-control button:hover {
+        background: rgba(255, 255, 255, 1);
+      }
+      .route-control {
+        top: 14px;
+        left: 14px;
+        width: 280px;
+        cursor: default;
+      }
+      .route-control label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        color: #111;
+      }
+      .route-control input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        margin-top: 4px;
+        font-size: 0.95rem;
+      }
+      .route-control button {
+        width: 100%;
+        padding: 10px 12px;
+        margin-top: 8px;
+        border: none;
+        border-radius: 6px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 0.95rem;
+      }
+      .route-control small {
+        display: block;
+        margin-top: 8px;
+        color: #475569;
+      }
     </style>
   </head>
   <body>
+    <div class="route-control">
+      <label>
+        Start location (lat,lng)
+        <input id="start-input" placeholder="51.505,5.45" />
+      </label>
+      <label>
+        End location (lat,lng)
+        <input id="end-input" placeholder="51.515,5.46" />
+      </label>
+      <button id="set-route">Set start/end</button>
+      <small>Defaults are current location and the last clicked marker.</small>
+    </div>
+    <button id="heat-toggle" class="heat-toggle">Show pollen heatmap</button>
     <div id="map"></div>
   </body>
 </html>

@@ -11,12 +11,39 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 var routeLayer = L.layerGroup().addTo(map);
+var pollenHeatLayer = L.layerGroup().addTo(map);
 var pollenCache = new Map();
+var heatmapOn = false;
+var manualStartSet = false;
+
+function parseLatLng(value) {
+  if (!value) {
+    return null;
+  }
+  const parts = value.split(",").map((s) => parseFloat(s.trim()));
+  if (parts.length !== 2 || parts.some((n) => Number.isNaN(n))) {
+    return null;
+  }
+  return { lat: parts[0], lng: parts[1] };
+}
+
 map.locate({ setView: true });
 
 map.on("locationfound", (e) => {
-  map.setView([41.9, 12.49], 19);
-  startpoint = L.marker([41.9, 12.49]).addTo(map);
+  if (manualStartSet) {
+    return;
+  }
+  const pos = e.latlng;
+  map.setView(pos, 13);
+  if (startpoint) {
+    startpoint.setLatLng(pos);
+  } else {
+    startpoint = L.marker(pos).addTo(map);
+  }
+  const startInput = document.getElementById("start-input");
+  if (startInput && !startInput.value) {
+    startInput.value = `${pos.lat.toFixed(6)},${pos.lng.toFixed(6)}`;
+  }
 });
 
 map.on("locationerror", () => {
@@ -34,6 +61,65 @@ map.on("click", (e) => {
     endpoint = L.marker(e.latlng, { fillColor: "rgb(255, 30, 0)" }).addTo(map);
   }
   getRoute();
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const heatToggle = document.getElementById("heat-toggle");
+  const startInput = document.getElementById("start-input");
+  const endInput = document.getElementById("end-input");
+  const setRouteBtn = document.getElementById("set-route");
+
+  if (setRouteBtn) {
+    setRouteBtn.addEventListener("click", () => {
+      const startValue = startInput ? parseLatLng(startInput.value) : null;
+      const endValue = endInput ? parseLatLng(endInput.value) : null;
+
+      if (startValue) {
+        manualStartSet = true;
+        if (startpoint) {
+          startpoint.setLatLng(startValue);
+        } else {
+          startpoint = L.marker(startValue).addTo(map);
+        }
+        map.panTo(startValue);
+      }
+
+      if (endValue) {
+        if (endpoint) {
+          endpoint.setLatLng(endValue);
+        } else {
+          endpoint = L.marker(endValue, { fillColor: "rgb(255, 30, 0)" }).addTo(
+            map,
+          );
+        }
+        endpoint_set = true;
+      }
+
+      if (startValue || endValue) {
+        getRoute();
+      }
+    });
+  }
+
+  if (heatToggle) {
+    heatToggle.addEventListener("click", async () => {
+      heatmapOn = !heatmapOn;
+      heatToggle.textContent = heatmapOn
+        ? "Hide pollen heatmap"
+        : "Show pollen heatmap";
+      if (heatmapOn) {
+        await loadPollenHeatMap();
+      } else {
+        pollenHeatLayer.clearLayers();
+      }
+    });
+  }
+});
+
+map.on("moveend", () => {
+  if (heatmapOn) {
+    loadPollenHeatMap();
+  }
 });
 
 // main routing function
@@ -135,6 +221,52 @@ async function fetchPollen(lat, lng) {
     console.error("Pollen fetch failed:", err);
     return 0;
   }
+}
+
+function getPollenColor(value) {
+  if (value >= 80) return "#b91c1c";
+  if (value >= 50) return "#f97316";
+  if (value >= 20) return "#facc15";
+  if (value > 0) return "#22c55e";
+  return "#0f766e";
+}
+
+async function loadPollenHeatMap() {
+  const bounds = map.getBounds();
+  const sw = bounds.getSouthWest();
+  const ne = bounds.getNorthEast();
+  const rows = 5;
+  const cols = 5;
+  const latStep = (ne.lat - sw.lat) / (rows - 1);
+  const lngStep = (ne.lng - sw.lng) / (cols - 1);
+  const points = [];
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      points.push([sw.lat + row * latStep, sw.lng + col * lngStep]);
+    }
+  }
+
+  const samples = await Promise.all(
+    points.map(async ([lat, lng]) => {
+      const pollen = await fetchPollen(lat, lng);
+      return { lat, lng, pollen };
+    }),
+  );
+
+  pollenHeatLayer.clearLayers();
+  samples.forEach(({ lat, lng, pollen }) => {
+    const color = getPollenColor(pollen);
+    const radius = Math.min(24, Math.max(6, pollen / 5 + 6));
+    L.circleMarker([lat, lng], {
+      radius,
+      fillColor: color,
+      color: color,
+      weight: 1,
+      fillOpacity: 0.55,
+      opacity: 0.8,
+    }).addTo(pollenHeatLayer);
+  });
 }
 
 async function scoreRoute(all_routes) {
