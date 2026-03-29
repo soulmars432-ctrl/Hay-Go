@@ -5,7 +5,7 @@ var routeLayer;
 var map = L.map("map").setView([51.505, 5.45], 13);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
-  minZoom: 18,
+  minZoom: 13,
   attribution:
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
@@ -15,6 +15,16 @@ var pollenHeatLayer = L.layerGroup().addTo(map);
 var pollenCache = new Map();
 var heatmapOn = false;
 var manualStartSet = false;
+var routeInfoElement = null;
+
+function updateRouteInfo(distance, duration) {
+  if (!routeInfoElement) return;
+  const distanceLabel =
+    distance != null ? `${(distance / 1000).toFixed(2)} km` : "--";
+  const durationLabel =
+    duration != null ? `${Math.round(duration / 60) * 3} min` : "--";
+  routeInfoElement.textContent = `Route length: ${distanceLabel}, duration: ${durationLabel}`;
+}
 
 function parseLatLng(value) {
   if (!value) {
@@ -68,6 +78,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const startInput = document.getElementById("start-input");
   const endInput = document.getElementById("end-input");
   const setRouteBtn = document.getElementById("set-route");
+
+  routeInfoElement = document.getElementById("route-info");
 
   if (setRouteBtn) {
     setRouteBtn.addEventListener("click", () => {
@@ -157,6 +169,7 @@ async function getRoute() {
     routeLayer.clearLayers();
     const route = await scoreRoute(data.routes);
     L.geoJSON(route.geometry, { weight: 10 }).addTo(routeLayer);
+    updateRouteInfo(route.distance, route.duration);
   } catch (err) {
     console.error("Route fetch failed:", err);
   }
