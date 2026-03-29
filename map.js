@@ -2,7 +2,7 @@ var endpoint_set = false;
 var endpoint;
 var startpoint;
 var routeLayer;
-var map = L.map("map").setView([51.505, 5.45], 13);
+var map = L.map("map").setView([41.9, 12.49], 13);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   minZoom: 13,
@@ -12,7 +12,7 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 var routeLayer = L.layerGroup().addTo(map);
 var pollenCache = new Map();
-var manualStartSet = false;
+var manualStartSet = true;
 var routeInfoElement = null;
 
 function updateRouteInfo(distance, duration) {
@@ -20,7 +20,7 @@ function updateRouteInfo(distance, duration) {
   const distanceLabel =
     distance != null ? `${(distance / 1000).toFixed(2)} km` : "--";
   const durationLabel =
-    duration != null ? `${Math.round(duration / 60) * 3} min` : "--";
+    duration != null ? `${Math.round(duration / 60) * 2.4} min` : "--";
   routeInfoElement.textContent = `Route length: ${distanceLabel}, duration: ${durationLabel}`;
 }
 
@@ -39,6 +39,17 @@ map.locate({ setView: true });
 
 map.on("locationfound", (e) => {
   if (manualStartSet) {
+    const pos = [41.9, 12.49];
+    map.setView(pos, 13);
+    if (startpoint) {
+      startpoint.setLatLng(pos);
+    } else {
+      startpoint = L.marker(pos).addTo(map);
+    }
+    const startInput = document.getElementById("start-input");
+    if (startInput && !startInput.value) {
+      startInput.value = `${pos.lat.toFixed(6)},${pos.lng.toFixed(6)}`;
+    }
     return;
   }
   const pos = e.latlng;
@@ -123,7 +134,8 @@ async function getRoute() {
   if (!endpoint_set || !startpoint) {
     return;
   }
-
+  var distance = 0;
+  var time = 0;
   var api_url =
     "https://router.project-osrm.org/route/v1/walking/" +
     startpoint.getLatLng().lng +
@@ -146,7 +158,8 @@ async function getRoute() {
     routeLayer.clearLayers();
     const route = await scoreRoute(data.routes);
     L.geoJSON(route.geometry, { weight: 10 }).addTo(routeLayer);
-    updateRouteInfo(route.distance, route.duration);
+    distance += route.distance;
+    time += route.duration;
   } catch (err) {
     console.error("Route fetch failed:", err);
   }
@@ -174,6 +187,9 @@ async function getRoute() {
 
     const route = await scoreRoute(data.routes);
     L.geoJSON(route.geometry, { weight: 10, color: "red" }).addTo(routeLayer);
+    distance += route.distance;
+    time += route.duration;
+    updateRouteInfo(distance, time);
   } catch (err) {
     console.error("Route fetch failed:", err);
   }
