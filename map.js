@@ -145,7 +145,7 @@ async function getRoute() {
     endpoint.getLatLng().lng +
     "," +
     endpoint.getLatLng().lat +
-    "?overview=full&geometries=geojson";
+    "?overview=full&geometries=geojson&alternatives=3";
 
   try {
     const resp = await fetch(api_url);
@@ -175,7 +175,7 @@ async function getRoute() {
     startpoint.getLatLng().lng +
     "," +
     startpoint.getLatLng().lat +
-    "?overview=full&geometries=geojson&alternatives=true";
+    "?overview=full&geometries=geojson&alternatives=3";
 
   try {
     const resp = await fetch(api_url);
